@@ -1,0 +1,4 @@
+*.swp
+bin
+
+IdoCommon/ido_crypto.h
