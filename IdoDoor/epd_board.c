@@ -84,7 +84,7 @@ uint8_t SPI_R(uint8_t Register, uint8_t Data) {
     return result;
 }
 void epd_spi_init(void){
-    uint8_t result = spi_acquire(EPD_PARAM_SPI,SPI_CS_UNDEF, SPI_MODE_0,SPI_CLK_10MHZ);
+    uint8_t result = spi_acquire(EPD_PARAM_SPI,SPI_CS_UNDEF, SPI_MODE_0,SPI_CLK_100KHZ);
     if(result!=0)
     {
         printf("fail int epd spi 0x%x\n", result);

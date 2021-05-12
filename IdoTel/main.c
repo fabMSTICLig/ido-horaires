@@ -30,7 +30,10 @@
 #include "fmt.h"
 #include "board.h"
 
+#include "periph/uart.h"
 #include "periph/rtc.h"
+
+#include "stdio_uart.h"
 
 #include "net/netdev.h"
 #include "net/netdev/lora.h"
@@ -57,6 +60,25 @@ static sx127x_t sx127x;
 
 cipher_context_t cipher;
 ido_msg_t msg={0};
+
+
+//extern ssize_t __real_stdio_write(const void* buffer, size_t len);
+//extern ssize_t stdio_write(const void* buffer, size_t len);
+
+ssize_t __wrap_stdio_write(const void* buffer, size_t len)
+{
+    const uint8_t *buf = (const uint8_t *)buffer;
+    const uint8_t cr = '\r';
+    size_t rem = len;
+    while (rem--) {
+            if (*buf == '\n')
+                    uart_write(STDIO_UART_DEV, &cr, 1);
+            uart_write(STDIO_UART_DEV, buf, 1);
+            buf++;
+    }
+
+    return len;
+}
 
 static int _print_time(struct tm *time)
 {
@@ -107,7 +129,7 @@ void send_cmd(uint8_t cmd, uint32_t time){
     msg.msg.cmd=cmd;
     msg.msg.time=time;
 
-    printf("cmd:0x%x time:%ld\n", cmd, time);
+    printf("cmd:0x%x time:%ld\r\n", cmd, time);
 
     aes_encrypt(&cipher, msg.aes_plain, message_enc);
 
@@ -118,7 +140,7 @@ void send_cmd(uint8_t cmd, uint32_t time){
 
     netdev_t *netdev = (netdev_t *)&sx127x;
     if (netdev->driver->send(netdev, &iolist) == -ENOTSUP) {
-        puts("Cannot send: radio is still transmitting");
+        puts("Cannot send: radio is still transmitting\r");
     }
 
 
@@ -128,7 +150,7 @@ void send_cmd(uint8_t cmd, uint32_t time){
 int settime_cmd(int argc, char **argv)
 {
     if (argc <= 1) {
-        puts("usage: settime YYYY-MM-DD HH:MM:SS");
+        puts("usage: settime YYYY-MM-DD HH:MM:SS\r");
         return -1;
     }
     struct tm now;
@@ -143,7 +165,7 @@ int settime_cmd(int argc, char **argv)
 int setopentime_cmd(int argc, char **argv)
 {
     if (argc <= 1) {
-        puts("usage: setopentime YYYY-MM-DD HH:MM:SS");
+        puts("usage: setopentime YYYY-MM-DD HH:MM:SS\r");
         return -1;
     }
     struct tm now;
@@ -171,10 +193,10 @@ int sendidle_cmd(int argc, char **argv)
     return 0;
 }
 static const shell_command_t shell_commands[] = {
-    { "setopentime",    "\tsetopentime YYYY-MM-DD HH:MM:SS\n\t\t\tset opening hour",     setopentime_cmd },
-    { "settime",    "\tsettime YYYY-MM-DD HH:MM:SS\n\t\t\tset the current time",     settime_cmd },
-    { "default",    "send reset screen",    senddefault_cmd },
-    { "idle",    "send idle",    sendidle_cmd },
+    { "setopentime",    "\tsetopentime YYYY-MM-DD HH:MM:SS\r\n\t\t\tset opening hour\r",     setopentime_cmd },
+    { "settime",    "\tsettime YYYY-MM-DD HH:MM:SS\r\n\t\t\tset the current time\r",     settime_cmd },
+    { "default",    "send reset screen\r",    senddefault_cmd },
+    { "idle",    "send idle\r",    sendidle_cmd },
     { NULL, NULL, NULL }
 };
 static void _event_cb(netdev_t *dev, netdev_event_t event)
@@ -186,14 +208,14 @@ static void _event_cb(netdev_t *dev, netdev_event_t event)
         msg.content.ptr = dev;
 
         if (msg_send(&msg, _recv_pid) <= 0) {
-            puts("gnrc_netdev: possibly lost interrupt.");
+            puts("gnrc_netdev: possibly lost interrupt.\r");
         }
     }
     else {
         switch (event) {
             case NETDEV_EVENT_TX_COMPLETE:
                 sx127x_set_sleep(&sx127x);
-                puts("Transmission completed");
+                puts("Transmission completed\r");
                 break;
 
             case NETDEV_EVENT_CAD_DONE:
@@ -204,7 +226,7 @@ static void _event_cb(netdev_t *dev, netdev_event_t event)
                 break;
 
             default:
-                printf("Unexpected netdev event received: %d\n", event);
+                printf("Unexpected netdev event received: %d\r\n", event);
                 break;
         }
     }
@@ -225,13 +247,18 @@ void *_recv_thread(void *arg)
             dev->driver->isr(dev);
         }
         else {
-            puts("Unexpected msg type");
+            puts("Unexpected msg type\r");
         }
     }
 }
 
 int main(void)
 {
+    uart_mode 	( UART_DEV(0),
+		UART_DATA_BITS_7,
+        UART_PARITY_EVEN,
+        UART_STOP_BITS_1
+	);
 
     aes_init(&cipher, IDO_KEY, 16);
 
@@ -240,7 +267,7 @@ int main(void)
     netdev->driver = &sx127x_driver;
 
     if (netdev->driver->init(netdev) < 0) {
-        puts("Failed to initialize SX127x device, exiting");
+        puts("Failed to initialize SX127x device, exiting\r");
         return 1;
     }
     netdev->event_callback = _event_cb;
@@ -248,7 +275,7 @@ int main(void)
                               THREAD_CREATE_STACKTEST, _recv_thread, NULL,
                               "recv_thread");
     if (_recv_pid <= KERNEL_PID_UNDEF) {
-        puts("Creation of receiver thread failed");
+        puts("Creation of receiver thread failed\r");
         return 1;
     }
 
@@ -263,8 +290,8 @@ int main(void)
                         &lora_cr, sizeof(lora_cr));
 
 
-    puts("Generated RIOT application: 'IdoTel'");
-    puts("Initialization successful - starting the shell now");
+    puts("Generated RIOT application: 'IdoTel'\r");
+    puts("Initialization successful - starting the shell now\r");
     char line_buf[SHELL_DEFAULT_BUFSIZE];
     shell_run(shell_commands, line_buf, SHELL_DEFAULT_BUFSIZE);
 

@@ -15,11 +15,14 @@ USEMODULE += crypto_aes
 
 # required features
 FEATURES_REQUIRED +=  periph_rtc
-FEATURES_REQUIRED +=  periph_uart
+FEATURES_REQUIRED +=  periph_uart periph_uart_modecfg
 FEATURES_REQUIRED += periph_spi
 
 INCLUDES += -I$(CURDIR)/include
 INCLUDES += -I$(CURDIR)/../IdoCommon
+
+CFLAGS+=-DSTDIO_UART_BAUDRATE=1200
+LINKFLAGS+=$(LINKFLAGPREFIX)--wrap=stdio_write
 
 # Comment this out to disable code in RIOT that does safety checking
 # which is not needed in a production environment but helps in the

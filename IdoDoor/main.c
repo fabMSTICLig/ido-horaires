@@ -35,7 +35,10 @@
 #include "horaires.h"
 #include "fermeture.h"
 
+#include "periph/uart.h"
 #include "periph/rtc.h"
+#include "periph/pm.h"
+#include "pm_layered.h"
 
 #include "net/netdev.h"
 #include "net/netdev/lora.h"
@@ -135,13 +138,17 @@ static void set_time(uint32_t time)
 static void set_default(void)
 {
     puts("Default");
-    return;
     EPD_power_on(EPD_270, 18);
+    puts("drive on");
     EPD_initialize_driver ();
+    puts("drive init");
     memcopy(horaires,image,IMAGE_LEN);
     EPD_display_from_array_prt ( old_image, image );
+    puts("disp");
     memcopy(horaires,old_image,IMAGE_LEN);
     EPD_power_off();
+    spi_release(EPD_PARAM_SPI);
+    puts("drive off");
 
 }
 
@@ -153,7 +160,6 @@ static int set_open(uint32_t time)
     rtc_localtime(time,&ot);
     _print_time(&ot);
     rtc_set_alarm(&ot,&cb_alarm,NULL);
-    return 0;
     BD_clear();
     BD_clip_image(fermeture,0,0,264,100);
     BD_locate(40,100);
@@ -162,9 +168,9 @@ static int set_open(uint32_t time)
            );
     puts(buffer);
     BD_puts(buffer);
-    BD_locate(60,136);
-    sprintf(buffer,"%02i:%02i:%02i",
-            ot.tm_hour, ot.tm_min, ot.tm_sec
+    BD_locate(90,136);
+    sprintf(buffer,"%02i:%02i",
+            ot.tm_hour, ot.tm_min
           );
     BD_puts(buffer);
     
@@ -173,6 +179,7 @@ static int set_open(uint32_t time)
     EPD_display_from_array_prt ( old_image, image );
     memcopy(image,old_image,IMAGE_LEN);
     EPD_power_off();
+    spi_release(EPD_PARAM_SPI);
     puts("draw_fermeture end");
     
     return 0;
@@ -183,6 +190,7 @@ static void set_idle(void){
     lora_sleep();
     state=0;
     gpio_set(LED_RED1_PIN);
+    pm_set(1);
 } 
 
 void handle_msg(uint8_t cmd, uint32_t time)
@@ -257,7 +265,8 @@ int main(void)
         puts("[FAILED] init BTN minus!");
         return 1;
     }
-
+	gpio_init(GPIO_PIN(PORT_C, 1), GPIO_OUT);
+	gpio_clear(GPIO_PIN(PORT_C, 1));
     ////////////INIT EPD
     BD_init( image, IMAGE_LEN, IMAGE_W, IMAGE_H, 0, 1);
     BD_clear();
@@ -265,10 +274,12 @@ int main(void)
     
     spi_init(EPD_PARAM_SPI);
     EPD_display_hardware_init();
-   
+
+    set_default();
     ///////INIT RTC
     
     rtc_poweron();
+
 
     //////////INIT LORA
     aes_init(&cipher, IDO_KEY, 16);
@@ -297,10 +308,12 @@ int main(void)
     ///// MAIN LOOP MESSAGE HANDLING
     static msg_t _msg_q[SX127X_LORA_MSG_QUEUE];
     msg_init_queue(_msg_q, SX127X_LORA_MSG_QUEUE);
-
+    
+    set_idle();
     while (1) {
         msg_t msg;
         msg_receive(&msg);
+        puts("msg");
         if (msg.type == MSG_TYPE_ISR) {
             netdev_t *dev = msg.content.ptr;
             dev->driver->isr(dev);
@@ -323,6 +336,7 @@ int main(void)
             rtc_get_time(&ot);
             _print_time(&ot);
             set_default();
+            set_idle();
         }
         else {
             puts("Unexpected msg type");

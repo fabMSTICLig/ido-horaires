@@ -8,14 +8,14 @@ BOARD ?= idosens_base
 RIOTBASE ?= $(CURDIR)/../../RIOT/
 
 # required modules
-USEMODULE +=  shell
-USEMODULE +=  shell_commands
+#USEMODULE +=  shell
+#USEMODULE +=  shell_commands
 USEMODULE +=  xtimer
 USEMODULE += sx1276
 USEMODULE += crypto_aes
 
 # required features
-FEATURES_REQUIRED +=  periph_adc
+#FEATURES_REQUIRED +=  periph_adc
 FEATURES_REQUIRED +=  periph_rtc
 FEATURES_REQUIRED +=  periph_uart
 FEATURES_REQUIRED += periph_spi
