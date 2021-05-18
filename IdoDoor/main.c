@@ -27,14 +27,6 @@
 #include "fmt.h"
 #include "board.h"
 
-#include "epd_board.h"
-#include "COG_FPL.h"
-#include "BufferDraw.h"
-#include "Arial24x23.h"
-#include "font_big.h"
-#include "horaires.h"
-#include "fermeture.h"
-
 #include "periph/uart.h"
 #include "periph/rtc.h"
 #include "periph/pm.h"
@@ -48,7 +40,18 @@
 #include "sx127x_params.h"
 #include "sx127x_netdev.h"
 
+///////Include  Epaper
+#include "epd_board.h"
+#include "COG_FPL.h"
+#include "BufferDraw.h"
+#include "Arial24x23.h"
+#include "font_big.h"
+#include "horaires.h"
+#include "fermeture.h"
+
+//include common info between transmitter and receiver
 #include "ido_common.h"
+//include AES Crypto Key
 #include "ido_crypto.h"
 
 #define SX127X_LORA_MSG_QUEUE   (16U)
@@ -63,6 +66,7 @@ static kernel_pid_t _recv_pid;
 static uint8_t message_enc[AES_BLOCK_SIZE];
 static sx127x_t sx127x;
 
+//Two image buffer for EPD
 #define IMAGE_W (264)
 #define IMAGE_H (176)
 #define IMAGE_LEN (IMAGE_W*IMAGE_H/8)
@@ -74,6 +78,7 @@ ido_msg_t msg={0};
 
 int state=0;
 
+//simple memcopy function
 void memcopy(const uint8_t * buffsource, uint8_t * buffdest, uint16_t len)
 {
     for(uint16_t i =0; i<len; i++)
@@ -81,6 +86,8 @@ void memcopy(const uint8_t * buffsource, uint8_t * buffdest, uint16_t len)
         buffdest[i]=buffsource[i];
     }
 }
+
+//Print formated time
 static int _print_time(struct tm *time)
 {
     printf("%04i-%02i-%02i %02i:%02i:%02i\n",
@@ -89,11 +96,10 @@ static int _print_time(struct tm *time)
           );
     return 0;
 }
+//Switch lora to listen mode 
 static void lora_rx(void)
 {
     ////////LORA RX MODE
-
-    
     netdev_t *netdev = (netdev_t *)&sx127x;
     const netopt_enable_t single = false;
     netdev->driver->set(netdev, NETOPT_SINGLE_RECEIVE, &single, sizeof(single));
@@ -107,6 +113,7 @@ static void lora_rx(void)
     printf("Listen mode set\n");
  
 }
+//Switch lora to sleep mode 
 static void lora_sleep(void)
 {
     /* Switch to SLEEP state */
@@ -116,6 +123,7 @@ static void lora_sleep(void)
     puts("lora sleep");
 }
 
+//Callback for RTC wakeup interup
 static void cb_alarm(void * arg){
     (void) arg;
     msg_t msg;
@@ -126,6 +134,8 @@ static void cb_alarm(void * arg){
     }
 }
 
+
+//set time of the RTC
 static void set_time(uint32_t time)
 {
     puts("time");
@@ -135,6 +145,7 @@ static void set_time(uint32_t time)
     _print_time(&ot);
 }
 
+//Draw default picture on EPD
 static void set_default(void)
 {
     puts("Default");
@@ -152,6 +163,8 @@ static void set_default(void)
 
 }
 
+//Draw closed picture with reopen time
+//Set rtc alarm to reopen time
 static int set_open(uint32_t time)
 {
     puts("open time");
@@ -159,7 +172,10 @@ static int set_open(uint32_t time)
     char buffer[20];
     rtc_localtime(time,&ot);
     _print_time(&ot);
+    //Set rtc alarm
     rtc_set_alarm(&ot,&cb_alarm,NULL);
+
+    //build image to draw
     BD_clear();
     BD_clip_image(fermeture,0,0,264,100);
     BD_locate(40,100);
@@ -174,17 +190,20 @@ static int set_open(uint32_t time)
           );
     BD_puts(buffer);
     
+    //Draw image on EPD
     EPD_power_on(EPD_270, 18);
     EPD_initialize_driver ();
     EPD_display_from_array_prt ( old_image, image );
     memcopy(image,old_image,IMAGE_LEN);
     EPD_power_off();
+    //EDP power use spi_aquire but you must use spi_release manualy
     spi_release(EPD_PARAM_SPI);
     puts("draw_fermeture end");
     
     return 0;
 }
 
+//Set lora to sleep and board to sleep
 static void set_idle(void){
     puts("idle");
     lora_sleep();
@@ -193,6 +212,7 @@ static void set_idle(void){
     pm_set(1);
 } 
 
+//handle received command
 void handle_msg(uint8_t cmd, uint32_t time)
 {
     printf("cmd:0x%x time:%ld\n", cmd, time);
@@ -213,6 +233,7 @@ void handle_msg(uint8_t cmd, uint32_t time)
     }
 }
 
+//Callback for RX LORA
 static void _event_cb(netdev_t *dev, netdev_event_t event)
 {
     if (event == NETDEV_EVENT_ISR) {
@@ -249,6 +270,8 @@ static void _event_cb(netdev_t *dev, netdev_event_t event)
         }
     }
 }
+
+//Callback for button interupt
 static void cb_btn(void * arg){
     (void) arg;
     msg_t msg;
@@ -261,29 +284,30 @@ static void cb_btn(void * arg){
 
 int main(void)
 {
+    //Set interupt for the button used for waking up the board 
     if (gpio_init_int(BOUTON_VOLUME_MINUS_PIN,GPIO_IN_PU , GPIO_FALLING, cb_btn, 0)<0) {
         puts("[FAILED] init BTN minus!");
         return 1;
     }
+    //Disable the audio driver (used 100mA when idle otherwise)
 	gpio_init(GPIO_PIN(PORT_C, 1), GPIO_OUT);
 	gpio_clear(GPIO_PIN(PORT_C, 1));
-    ////////////INIT EPD
+    
+    //Init buffer image
     BD_init( image, IMAGE_LEN, IMAGE_W, IMAGE_H, 0, 1);
     BD_clear();
     BD_set_font(Courier_New19x36, Courier_New19x36_conf);
-    
+    //Init EPD
     spi_init(EPD_PARAM_SPI);
     EPD_display_hardware_init();
-
     set_default();
-    ///////INIT RTC
-    
+    //Init RTC
     rtc_poweron();
 
-
-    //////////INIT LORA
+    //Init crypto
     aes_init(&cipher, IDO_KEY, 16);
     
+    //Init LORA
     sx127x.params = sx127x_params[0];
     netdev_t *netdev = (netdev_t *)&sx127x;
     netdev->driver = &sx127x_driver;
@@ -304,16 +328,16 @@ int main(void)
     netdev->driver->set(netdev, NETOPT_CODING_RATE,
                         &lora_cr, sizeof(lora_cr));
 
-   
+    //start in idle mode
+    set_idle();
+    
     ///// MAIN LOOP MESSAGE HANDLING
     static msg_t _msg_q[SX127X_LORA_MSG_QUEUE];
     msg_init_queue(_msg_q, SX127X_LORA_MSG_QUEUE);
     
-    set_idle();
     while (1) {
         msg_t msg;
         msg_receive(&msg);
-        puts("msg");
         if (msg.type == MSG_TYPE_ISR) {
             netdev_t *dev = msg.content.ptr;
             dev->driver->isr(dev);

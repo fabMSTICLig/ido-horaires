@@ -158,7 +158,15 @@ void BD_set_font(const unsigned char* f, const unsigned short* f_conf);
   */
 void BD_print_bm(struct Bitmap bm, int x, int y);
 
-
+/** Clip a buffer inside the main buffer
+ * 
+ * @param image buffer to clip
+ * @param x x position of the input buffer
+ * @param y y position of the input buffer
+ * @param width width of the input buffer
+ * @param height height of the input buffer
+ *
+ */
 void BD_clip_image(const unsigned char * image, uint16_t x, uint16_t y, uint16_t width, uint16_t height);
 
  #endif /* BUFFER_DRAW_H */

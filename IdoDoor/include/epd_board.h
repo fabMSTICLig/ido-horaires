@@ -1,5 +1,6 @@
 /*
  * epd_board.h
+ *  Low level hardware for EPD Driver
  *
  *  Created on: Mar 29, 2021
  *      Author: Germain
