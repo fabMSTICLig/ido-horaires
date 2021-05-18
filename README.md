@@ -1,5 +1,7 @@
 # ido-horaires
 
+<img src="https://fabmstic.imag.fr/images/articles/idohoraires1.jpg" width="300"> <img src="https://fabmstic.imag.fr/images/articles/idohoraires2.jpg" width="500">
+
 Création d'un sytème permettant d'afficher les horraires du FabMSTIC et les fermetures exeptionelles sur la porte du FabMSTIC. Le pilotage de l'affichage se fait grâce à un minitel par communication LORA.
 
 ## Matériels utilisés
