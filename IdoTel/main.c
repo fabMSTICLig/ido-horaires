@@ -61,10 +61,8 @@ static sx127x_t sx127x;
 cipher_context_t cipher;
 ido_msg_t msg={0};
 
-
-//extern ssize_t __real_stdio_write(const void* buffer, size_t len);
-//extern ssize_t stdio_write(const void* buffer, size_t len);
-
+//Function remplaçant stdio_write qui rajoute le \r
+//Ceci est indispensable pour avoir un affichage correct sur le minitel
 ssize_t __wrap_stdio_write(const void* buffer, size_t len)
 {
     const uint8_t *buf = (const uint8_t *)buffer;
@@ -96,6 +94,8 @@ static int dow(int year, int month, int day)
     return (year + year/4 - year/100 + year/400 + t[month-1] + day) % 7;
 }
 
+/* Parse le string "YYYY-MM-DD HH:MM:SS" en structure time
+ */
 static int _parse_time(char **argv, struct tm *time)
 {
     short i;
@@ -125,6 +125,9 @@ static int _parse_time(char **argv, struct tm *time)
     return 0;
 }
 
+/* Envoi la commande avec LORA
+ * Crypte le message avant l'envoie
+ */
 void send_cmd(uint8_t cmd, uint32_t time){
     msg.msg.cmd=cmd;
     msg.msg.time=time;
@@ -147,6 +150,8 @@ void send_cmd(uint8_t cmd, uint32_t time){
 
 }
 
+/* Shell callback pour le changer l'heure
+ */
 int settime_cmd(int argc, char **argv)
 {
     if (argc <= 1) {
@@ -162,6 +167,8 @@ int settime_cmd(int argc, char **argv)
     return 0;
 }
 
+/* Shell callback pour le changer définir la date de réouverture
+ */
 int setopentime_cmd(int argc, char **argv)
 {
     if (argc <= 1) {
@@ -177,6 +184,8 @@ int setopentime_cmd(int argc, char **argv)
 
     return 0;
 }
+/* Shell callback pour afficher les horraires d'ouverture (écran par défaut)
+ */
 int senddefault_cmd(int argc, char **argv)
 {
     (void) argc;
@@ -185,6 +194,8 @@ int senddefault_cmd(int argc, char **argv)
 
     return 0;
 }
+/* Shell callback pour mettre la base Idosens en veille
+ */
 int sendidle_cmd(int argc, char **argv)
 {
     (void) argc;
@@ -199,6 +210,9 @@ static const shell_command_t shell_commands[] = {
     { "idle",    "send idle\r",    sendidle_cmd },
     { NULL, NULL, NULL }
 };
+
+/* Callback des  intéruption de la stack LORA
+ */
 static void _event_cb(netdev_t *dev, netdev_event_t event)
 {
     if (event == NETDEV_EVENT_ISR) {
@@ -232,6 +246,8 @@ static void _event_cb(netdev_t *dev, netdev_event_t event)
     }
 }
 
+/* Thread qui traite les intéruptions du module lora
+ */
 void *_recv_thread(void *arg)
 {
     (void)arg;
@@ -254,12 +270,14 @@ void *_recv_thread(void *arg)
 
 int main(void)
 {
+    //Paramètre UART du minitel 7 bit, parité pair, stop bit 1
     uart_mode 	( UART_DEV(0),
 		UART_DATA_BITS_7,
         UART_PARITY_EVEN,
         UART_STOP_BITS_1
 	);
 
+    //initialisation de la crypto
     aes_init(&cipher, IDO_KEY, 16);
 
     sx127x.params = sx127x_params[0];

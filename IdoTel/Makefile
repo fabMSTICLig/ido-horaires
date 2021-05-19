@@ -21,7 +21,9 @@ FEATURES_REQUIRED += periph_spi
 INCLUDES += -I$(CURDIR)/include
 INCLUDES += -I$(CURDIR)/../IdoCommon
 
+#Baudrate par défault du minitel
 CFLAGS+=-DSTDIO_UART_BAUDRATE=1200
+#Surcharge la function stdio_write pour rajouter le \r
 LINKFLAGS+=$(LINKFLAGPREFIX)--wrap=stdio_write
 
 # Comment this out to disable code in RIOT that does safety checking
