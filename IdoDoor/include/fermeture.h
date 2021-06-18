@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: LGPL-2.1-or-later
 //https://javl.github.io/image2cpp/
 const unsigned char fermeture[] = {
 // 'fermeture', 264x100px

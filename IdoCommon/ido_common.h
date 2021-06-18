@@ -1,4 +1,4 @@
-
+// SPDX-License-Identifier: LGPL-2.1-or-later
 #ifndef IDO_COMMON_H
 #define IDO_COMMON_H
 

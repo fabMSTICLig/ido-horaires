@@ -1,9 +1,10 @@
+// SPDX-License-Identifier: LGPL-2.1-or-later
 /*
  * epd_board.h
  *  Low level hardware for EPD Driver
  *
  *  Created on: Mar 29, 2021
- *      Author: Germain
+ *      Author: Germain Lemasson
  */
 
 #ifndef INC_EPD_BOARD_H_

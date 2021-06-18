@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: LGPL-2.1-or-later
 #include "BufferDraw.h"
  
 static const uint8_t * font;

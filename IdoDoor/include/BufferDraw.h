@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: LGPL-2.1-or-later
 /*
  * Draw in image array based on https://os.mbed.com/users/dreschpe/code/EaEpaper/
  *
