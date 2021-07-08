@@ -94,7 +94,7 @@ static int dow(int year, int month, int day)
     return (year + year/4 - year/100 + year/400 + t[month-1] + day) % 7;
 }
 
-/* Parse le string "YYYY-MM-DD HH:MM:SS" en structure time
+/* Parse le string "YYYY-MM-DD HH:MM" en structure time
  */
 static int _parse_time(char **argv, struct tm *time)
 {
@@ -116,8 +116,7 @@ static int _parse_time(char **argv, struct tm *time)
     i = strtol(end + 1, &end, 10);
     time->tm_min = i;
 
-    i = strtol(end + 1, &end, 10);
-    time->tm_sec = i;
+    time->tm_sec = 0;
 
     time->tm_wday = dow(time->tm_year + 1900, time->tm_mon + 1, time->tm_mday);
     time->tm_isdst = -1; /* undefined */
@@ -128,9 +127,10 @@ static int _parse_time(char **argv, struct tm *time)
 /* Envoi la commande avec LORA
  * Crypte le message avant l'envoie
  */
-void send_cmd(uint8_t cmd, uint32_t time){
+void send_cmd(uint8_t cmd, uint32_t time, uint32_t time_close){
     msg.msg.cmd=cmd;
     msg.msg.time=time;
+    msg.msg.time_close=time_close;
 
     printf("cmd:0x%x time:%ld\r\n", cmd, time);
 
@@ -155,13 +155,13 @@ void send_cmd(uint8_t cmd, uint32_t time){
 int settime_cmd(int argc, char **argv)
 {
     if (argc <= 1) {
-        puts("usage: settime YYYY-MM-DD HH:MM:SS\r");
+        puts("usage: settime YYYY-MM-DD HH:MM\r");
         return -1;
     }
     struct tm now;
     if (_parse_time(argv+1, &now) == 0) {
         _print_time(&now);
-        send_cmd(IDO_CMD_TIME,rtc_mktime(&now));
+        send_cmd(IDO_CMD_TIME,rtc_mktime(&now),0);
     }
     
     return 0;
@@ -172,13 +172,34 @@ int settime_cmd(int argc, char **argv)
 int setopentime_cmd(int argc, char **argv)
 {
     if (argc <= 1) {
-        puts("usage: setopentime YYYY-MM-DD HH:MM:SS\r");
+        puts("usage: setopentime YYYY-MM-DD HH:MM\r");
         return -1;
     }
-    struct tm now;
-    if (_parse_time(argv+1, &now) == 0) {
-        _print_time(&now);
-        send_cmd(IDO_CMD_OPENTIME,rtc_mktime(&now));
+    struct tm open;
+    if (_parse_time(argv+1, &open) == 0) {
+        _print_time(&open);
+        send_cmd(IDO_CMD_OPENTIME,rtc_mktime(&open),0);
+    }
+    
+
+    return 0;
+}
+/* Shell callback pour le changer définir la date de fermeture et de réouverture
+ */
+int setclosetime_cmd(int argc, char **argv)
+{
+    if (argc <= 1) {
+        puts("usage: setopentime YYYY-MM-DD HH:MM YYYY-MM-DD HH:MM");
+        return -1;
+    }
+    struct tm close;
+    struct tm open;
+    if (_parse_time(argv+1, &close) == 0) {
+        _print_time(&close);
+        if (_parse_time(argv+3, &open) == 0) {
+            _print_time(&open);
+            send_cmd(IDO_CMD_CLOSETIME,rtc_mktime(&open),rtc_mktime(&close));
+        }
     }
     
 
@@ -190,7 +211,7 @@ int senddefault_cmd(int argc, char **argv)
 {
     (void) argc;
     (void) argv;
-    send_cmd(IDO_CMD_DEFAULT,0);
+    send_cmd(IDO_CMD_DEFAULT,0, 0);
 
     return 0;
 }
@@ -200,12 +221,13 @@ int sendidle_cmd(int argc, char **argv)
 {
     (void) argc;
     (void) argv;
-    send_cmd(IDO_CMD_IDLE,0);
+    send_cmd(IDO_CMD_IDLE,0, 0);
     return 0;
 }
 static const shell_command_t shell_commands[] = {
-    { "setopentime",    "\tsetopentime YYYY-MM-DD HH:MM:SS\r\n\t\t\tset opening hour\r",     setopentime_cmd },
-    { "settime",    "\tsettime YYYY-MM-DD HH:MM:SS\r\n\t\t\tset the current time\r",     settime_cmd },
+    { "setclosetime",    "\tsetclosetime YYYY-MM-DD HH:MM YYYY-MM-DD HH:MM\r\n\t\t\tset closing hours\r",     setclosetime_cmd },
+    { "setopentime",    "\tsetopentime YYYY-MM-DD HH:MM\r\n\t\t\tset opening hour\r",     setopentime_cmd },
+    { "settime",    "\tsettime YYYY-MM-DD HH:MM\r\n\t\t\tset the current time\r",     settime_cmd },
     { "default",    "send reset screen\r",    senddefault_cmd },
     { "idle",    "send idle\r",    sendidle_cmd },
     { NULL, NULL, NULL }

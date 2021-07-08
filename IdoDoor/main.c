@@ -59,7 +59,8 @@
 
 #define MSG_TYPE_ISR            (0x3456)
 #define MSG_TYPE_BTN            (0x1024)
-#define MSG_TYPE_ALARM          (0x2048)
+#define MSG_TYPE_ALARM_CLOSE    (0x2048)
+#define MSG_TYPE_ALARM_OPEN     (0x2049)
 
 static kernel_pid_t _recv_pid;
 
@@ -75,6 +76,8 @@ static uint8_t old_image[IMAGE_LEN];
 
 cipher_context_t cipher;
 ido_msg_t msg={0};
+uint32_t opentime=0;
+
 
 int state=0;
 
@@ -127,13 +130,12 @@ static void lora_sleep(void)
 static void cb_alarm(void * arg){
     (void) arg;
     msg_t msg;
-    msg.type = MSG_TYPE_ALARM;
+    msg.type = (uint32_t) arg;
 
     if (msg_send(&msg, _recv_pid) <= 0) {
         puts("gnrc_netdev: possibly lost interrupt.");
     }
 }
-
 
 //set time of the RTC
 static void set_time(uint32_t time)
@@ -162,7 +164,18 @@ static void set_default(void)
     puts("drive off");
 
 }
-
+//Set rtc alarm to close time
+static int set_close(uint32_t close_time, uint32_t time)
+{
+    puts("close time");
+    opentime=time;
+    struct tm ct;
+    rtc_localtime(close_time,&ct);
+    _print_time(&ct);
+    //Set rtc alarm
+    rtc_set_alarm(&ct,&cb_alarm,(void *)MSG_TYPE_ALARM_CLOSE);
+    return 0;
+}
 //Draw closed picture with reopen time
 //Set rtc alarm to reopen time
 static int set_open(uint32_t time)
@@ -173,7 +186,7 @@ static int set_open(uint32_t time)
     rtc_localtime(time,&ot);
     _print_time(&ot);
     //Set rtc alarm
-    rtc_set_alarm(&ot,&cb_alarm,NULL);
+    rtc_set_alarm(&ot,&cb_alarm,(void *)MSG_TYPE_ALARM_OPEN);
 
     //build image to draw
     BD_clear();
@@ -213,19 +226,22 @@ static void set_idle(void){
 } 
 
 //handle received command
-void handle_msg(uint8_t cmd, uint32_t time)
+void handle_msg(struct ido_msg msg)
 {
-    printf("cmd:0x%x time:%ld\n", cmd, time);
-    switch(cmd)
+    printf("cmd:0x%x time:%ld\n", msg.cmd, msg.time);
+    switch(msg.cmd)
     {
         case IDO_CMD_DEFAULT:
             set_default();
             break;
+        case IDO_CMD_CLOSETIME:
+            set_close(msg.time_close,msg.time);
+            break;
         case IDO_CMD_OPENTIME:
-            set_open(time);
+            set_open(msg.time);
             break;
         case IDO_CMD_TIME:
-            set_time(time);
+            set_time(msg.time);
             break;
         case IDO_CMD_IDLE:
             set_idle();
@@ -258,7 +274,7 @@ static void _event_cb(netdev_t *dev, netdev_event_t event)
                 len = dev->driver->recv(dev, NULL, 0, 0);
                 dev->driver->recv(dev, message_enc, len, &packet_info);
                 aes_decrypt(&cipher, message_enc, msg.aes_plain);
-                handle_msg(msg.msg.cmd, msg.msg.time);
+                handle_msg(msg.msg);
                 break;
 
             case NETDEV_EVENT_CAD_DONE:
@@ -354,12 +370,17 @@ int main(void)
                 lora_rx();
             }
         }
-        else if(msg.type == MSG_TYPE_ALARM){
-            puts("wakeup RTC");
+        else if(msg.type == MSG_TYPE_ALARM_OPEN){
+            puts("wakeup RTC open");
             struct tm ot;
             rtc_get_time(&ot);
             _print_time(&ot);
             set_default();
+            set_idle();
+        }
+        else if(msg.type == MSG_TYPE_ALARM_CLOSE){
+            puts("wakeup RTC close");
+            set_open(opentime);
             set_idle();
         }
         else {
