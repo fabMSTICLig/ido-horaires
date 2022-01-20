@@ -12,7 +12,7 @@ RIOTBASE ?= $(CURDIR)/../../RIOT/
 #USEMODULE +=  shell_commands
 USEMODULE +=  xtimer
 USEMODULE += sx1276
-USEMODULE += crypto_aes
+USEMODULE += crypto_aes_128
 
 # required features
 #FEATURES_REQUIRED +=  periph_adc

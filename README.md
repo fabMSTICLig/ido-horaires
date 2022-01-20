@@ -29,3 +29,14 @@ Création d'un système permettant d'afficher les horraires du FabMSTIC et les f
 - IdoCommon : dossier contenant les fichiers communs à la base idosens et à la télécommande. Pensez à générer votre fichier ido_crypto.h
 - IdoDoor : programme de la base Idosens qui permet l'affichage sur l'écran E-paper
 - IdoTel : programme de la télécommande qui est connectée au minitel et qui envoie les commandes par LORA.
+
+
+## Installation
+
+- cloner le dépot https://github.com/CampusIoT/RIOT dans un dossier externe à celui de ce dépot
+- configuer la variable d'environnement RIOTBASE afin quelle pointe sur le dossier de https://github.com/CampusIoT/RIOT
+- installer la toolchain comme indiqué dans ce post https://askubuntu.com/a/1243405
+- installer https://github.com/RIOT-OS/RIOT/wiki/OpenOCD
+- créer le fichier IdoCommon/ido_crypto.h en se basant sur le fichier IdoCommon/ido_crypto.h.example
+- aller dans IdoDoor et taper make
+
