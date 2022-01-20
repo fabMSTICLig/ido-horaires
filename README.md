@@ -26,6 +26,6 @@ Création d'un système permettant d'afficher les horraires du FabMSTIC et les f
 
 ## Organisation du dépot
 
-- IdoCommon : dossier contenant les fichiers communs à la base idosens et à la télécommande
+- IdoCommon : dossier contenant les fichiers communs à la base idosens et à la télécommande. Pensez à générer votre fichier ido_crypto.h
 - IdoDoor : programme de la base Idosens qui permet l'affichage sur l'écran E-paper
 - IdoTel : programme de la télécommande qui est connectée au minitel et qui envoie les commandes par LORA.
