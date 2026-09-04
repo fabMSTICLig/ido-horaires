@@ -23,6 +23,7 @@ INCLUDES += -I$(CURDIR)/../IdoCommon
 
 #Baudrate par défault du minitel
 CFLAGS+=-DSTDIO_UART_BAUDRATE=1200
+#CFLAGS+=-DSTDIO_UART_BAUDRATE=115200
 #Surcharge la function stdio_write pour rajouter le \r
 LINKFLAGS+=$(LINKFLAGPREFIX)--wrap=stdio_write
 
